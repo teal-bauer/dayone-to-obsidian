@@ -22,9 +22,30 @@ Convert Day One journal exports to Obsidian-compatible Markdown files with full 
 ## Requirements
 
 - Ruby 2.7+
-- `rubyzip` gem (`gem install rubyzip`)
+- Bundler (`gem install bundler`)
+
+## Installation
+
+```bash
+bundle install
+```
 
 ## Usage
+
+### Web Interface (Recommended)
+
+1. Start the server:
+```bash
+bundle exec ruby app.rb
+```
+
+2. Open http://localhost:4567 in your browser
+
+3. Drag and drop your Day One export ZIP file
+
+4. Download the converted Obsidian vault
+
+### Command Line
 
 ```bash
 ruby dayone_to_obsidian.rb <input_path> <output_dir>
