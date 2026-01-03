@@ -2,9 +2,19 @@
 
 Convert Day One journal exports to Obsidian-compatible Markdown files with full metadata preservation.
 
+## Browser Version
+
+Looking for a client-side version that runs entirely in your browser?
+
+- **[Try it online](https://teal-bauer.github.io/dayone-to-obsidian-js/)** - No installation required
+- **[JavaScript version repo](https://github.com/teal-bauer/dayone-to-obsidian-js)** - Pure JS implementation
+
+This Ruby version offers a command-line tool and self-hosted web interface.
+
 ## Features
 
 - Reads Day One ZIP exports directly (or extracted directories)
+- Supports **all attachment types**: photos, videos, audio, and PDFs
 - Preserves all metadata in YAML frontmatter:
   - UUID, creation/modification dates, timezone
   - Tags (converted to Obsidian-friendly format)

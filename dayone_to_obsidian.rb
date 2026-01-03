@@ -73,11 +73,13 @@ class DayOneToObsidian
       journal_data = JSON.parse(journal_entry.get_input_stream.read)
       entries = journal_data['entries'] || []
 
-      # Extract photos
-      zip_file.glob('**/photos/*').each do |photo_entry|
-        filename = File.basename(photo_entry.name)
-        dest_path = File.join(@attachments_dir, filename)
-        zip_file.extract(photo_entry, dest_path) unless File.exist?(dest_path)
+      # Extract all media (photos, videos, audios, pdfs)
+      ['photos', 'videos', 'audios', 'pdfAttachments', 'pdfs'].each do |dir|
+        zip_file.glob("**/#{dir}/*").each do |media_entry|
+          filename = File.basename(media_entry.name)
+          dest_path = File.join(@attachments_dir, filename)
+          zip_file.extract(media_entry, dest_path) unless File.exist?(dest_path)
+        end
       end
 
       convert_entries(entries)
@@ -92,11 +94,14 @@ class DayOneToObsidian
       journal_data = JSON.parse(File.read(json_file))
       entries = journal_data['entries'] || []
 
-      # Copy photos
-      photos_dir = File.join(File.dirname(json_file), 'photos')
-      if Dir.exist?(photos_dir)
-        Dir.glob(File.join(photos_dir, '*')).each do |photo|
-          FileUtils.cp(photo, @attachments_dir) unless File.exist?(File.join(@attachments_dir, File.basename(photo)))
+      # Copy all media (photos, videos, audios, pdfs)
+      ['photos', 'videos', 'audios', 'pdfAttachments', 'pdfs'].each do |dir_name|
+        media_dir = File.join(File.dirname(json_file), dir_name)
+        if Dir.exist?(media_dir)
+          Dir.glob(File.join(media_dir, '*')).each do |media_file|
+            dest = File.join(@attachments_dir, File.basename(media_file))
+            FileUtils.cp(media_file, dest) unless File.exist?(dest)
+          end
         end
       end
 
