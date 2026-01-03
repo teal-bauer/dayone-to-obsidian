@@ -7,6 +7,7 @@ require 'fileutils'
 require 'time'
 require 'zip'
 require 'set'
+require 'digest'
 
 class DayOneToObsidian
   WEATHER_CODES = {
@@ -38,13 +39,16 @@ class DayOneToObsidian
     'waning-crescent' => 'Waning Crescent'
   }.freeze
 
-  def initialize(input_path, output_dir)
+  def initialize(input_path, output_dir, allow_duplicates: false)
     @input_path = input_path
     @output_dir = output_dir
     @entries_dir = File.join(output_dir, 'entries')
     @attachments_dir = File.join(output_dir, 'attachments')
     @photo_map = {} # identifier -> md5 mapping
     @used_filenames = Set.new
+    @allow_duplicates = allow_duplicates
+    @seen_entries = {} # uuid -> content_hash mapping
+    @skipped_duplicates = 0
   end
 
   def convert
@@ -101,10 +105,17 @@ class DayOneToObsidian
   end
 
   def convert_entries(entries)
+    converted = 0
     entries.each do |entry|
+      if should_skip_duplicate?(entry)
+        @skipped_duplicates += 1
+        next
+      end
       convert_entry(entry)
+      converted += 1
     end
-    puts "Converted #{entries.length} entries"
+    puts "Converted #{converted} entries"
+    puts "Skipped #{@skipped_duplicates} duplicate entries" if @skipped_duplicates > 0
   end
 
   def convert_entry(entry)
@@ -123,6 +134,36 @@ class DayOneToObsidian
     # Write file
     output_path = File.join(@entries_dir, filename)
     File.write(output_path, "#{frontmatter}#{content}")
+
+    # Track this entry for deduplication
+    record_entry(entry) unless @allow_duplicates
+  end
+
+  def should_skip_duplicate?(entry)
+    return false if @allow_duplicates
+    return false unless entry['uuid']
+
+    uuid = entry['uuid']
+    content = entry['text'] || ''
+    content_hash = Digest::SHA256.hexdigest(content)
+
+    # Check if we've seen this UUID before
+    if @seen_entries.key?(uuid)
+      # If the content hash matches, it's a duplicate
+      return @seen_entries[uuid] == content_hash
+    end
+
+    false
+  end
+
+  def record_entry(entry)
+    return unless entry['uuid']
+
+    uuid = entry['uuid']
+    content = entry['text'] || ''
+    content_hash = Digest::SHA256.hexdigest(content)
+
+    @seen_entries[uuid] = content_hash
   end
 
   def build_photo_map(entry)
@@ -332,18 +373,43 @@ end
 
 # CLI interface
 if __FILE__ == $0
+  require 'optparse'
+
+  allow_duplicates = false
+
+  OptionParser.new do |opts|
+    opts.banner = "Usage: #{$0} <input_path> <output_dir> [options]"
+
+    opts.on("--allow-duplicates", "Allow duplicate entries with same UUID and content") do
+      allow_duplicates = true
+    end
+
+    opts.on("-h", "--help", "Show this help message") do
+      puts opts
+      puts ""
+      puts "Arguments:"
+      puts "  input_path: Path to Day One export ZIP file or extracted directory"
+      puts "  output_dir: Directory where Obsidian vault will be created"
+      exit
+    end
+  end.parse!
+
   if ARGV.length < 2
-    puts "Usage: #{$0} <input_path> <output_dir>"
+    puts "Usage: #{$0} <input_path> <output_dir> [options]"
     puts ""
     puts "  input_path: Path to Day One export ZIP file or extracted directory"
     puts "  output_dir: Directory where Obsidian vault will be created"
+    puts ""
+    puts "Options:"
+    puts "  --allow-duplicates    Allow duplicate entries with same UUID and content"
+    puts "  -h, --help           Show this help message"
     exit 1
   end
 
   input_path = ARGV[0]
   output_dir = ARGV[1]
 
-  converter = DayOneToObsidian.new(input_path, output_dir)
+  converter = DayOneToObsidian.new(input_path, output_dir, allow_duplicates: allow_duplicates)
   converter.convert
 
   puts "Conversion complete! Output written to: #{output_dir}"
